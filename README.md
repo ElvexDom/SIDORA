@@ -38,6 +38,7 @@ Modéliser, normaliser et implémenter la base de données pour SIDORA AI, inclu
   * **Mot de passe haché avec bcrypt** : garantit la sécurité, la non‑réversibilité et la conformité à l’Article 32 du RGPD (sécurité du traitement).
   * **Email haché avec SHA‑256** : permet la vérification et l’unicité sans conservation en clair, conformément au principe de minimisation des données et à l’Article 5 du RGPD (protection des données).
   * **Pseudonyme utilisateur stocké en clair** : nécessaire à l’affichage et aux interactions, sans permettre l’identification directe d’une personne réelle, en conformité avec l’Article 5 du RGPD (protection des données).
+  * **Conservation des données limitée à 5 ans maximum** : les données ne sont stockées **que si le consentement est donné** (consent = True), sinon aucun enregistrement n’est créé.
 
 * Génération de données simulées avec **Faker** pour les tests, en respectant les principes de **privacy by design**.
 
