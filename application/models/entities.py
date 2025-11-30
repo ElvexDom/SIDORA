@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, Float, String, Boolean, Date
+from sqlalchemy import Column, ForeignKey, Integer, SmallInteger, CHAR, Float, String, Boolean, Date
 from sqlalchemy.orm import relationship, declarative_base
 
 Base = declarative_base()
@@ -21,9 +21,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
-    pseudo = Column(String, nullable=False, unique=True)
-    password = Column(String, nullable=False)
-    mail = Column(String, nullable=False, unique=True)
+    pseudo = Column(String(20), nullable=False, unique=True)
+    password = Column(CHAR(60), nullable=False)
+    mail = Column(CHAR(64), nullable=False, unique=True)
     consent = Column(Boolean, nullable=False)
     expiry = Column(Date, nullable=False)
 
@@ -76,7 +76,7 @@ class Game(Base):
     __tablename__ = "games"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
+    name = Column(String(100), nullable=False)
     rank = Column(Integer, nullable=False)
     publisher_id = Column(Integer, ForeignKey("publishers.id"), nullable=False)
     genre_id = Column(Integer, ForeignKey("genres.id"), nullable=False)
@@ -107,7 +107,7 @@ class GamePlatform(Base):
 
     game_id = Column(Integer, ForeignKey("games.id"), primary_key=True)
     platform_id = Column(Integer, ForeignKey("platforms.id"), primary_key=True)
-    release_year = Column(Integer, nullable=False)
+    release_year = Column(SmallInteger)
 
     game = relationship("Game", back_populates="platform_links")
     platform = relationship("Platform", back_populates="game_links")
@@ -127,7 +127,7 @@ class Platform(Base):
     __tablename__ = "platforms"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String(30), nullable=False, unique=True)
 
     game_links = relationship("GamePlatform", back_populates="platform", cascade="all, delete-orphan")
     linked_games = relationship("Game", secondary="games_platforms", viewonly=True)
@@ -146,7 +146,7 @@ class Publisher(Base):
     __tablename__ = "publishers"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String(100), nullable=False, unique=True)
 
     games = relationship("Game", back_populates="publisher", cascade="all, delete-orphan")
 
@@ -164,7 +164,7 @@ class Genre(Base):
     __tablename__ = "genres"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String(10), nullable=False, unique=True)
 
     games = relationship("Game", back_populates="genre", cascade="all, delete-orphan")
 
@@ -187,11 +187,11 @@ class Sale(Base):
     __tablename__ = "sales"
 
     id = Column(Integer, primary_key=True)
-    north_america = Column(Float, nullable=False)
-    europe = Column(Float, nullable=False)
-    japan = Column(Float, nullable=False)
-    other = Column(Float, nullable=False)
-    total = Column(Float, nullable=False)
+    north_america = Column(Float(4,2), nullable=False)
+    europe = Column(Float(4,2), nullable=False)
+    japan = Column(Float(4,2), nullable=False)
+    other = Column(Float(4,2), nullable=False)
+    total = Column(Float(4,2), nullable=False)
     game_id = Column(Integer, ForeignKey("games.id"), nullable=False, unique=True)
 
     game = relationship("Game", back_populates="sale", uselist=False)
