@@ -1,19 +1,28 @@
-from application.db.database import engine, init_db, db_exists
+from application.db.database_manager import DatabaseManager
+
+CSV_PATH = "application/data/vgsales.csv"
 
 def start():
     """
     Fonction principale pour démarrer l'application.
     Vérifie si la base existe, sinon l'initialise.
     """
-    if not db_exists():
-        print("Base de données non trouvée, initialisation...")
-        init_db()
+    # Création de l'instance du gestionnaire de base
+    db = DatabaseManager()
+
+    if not db.exists():
+        print("[INFO] Initialisation de la base de données...")
+        try:
+            db.initialize(CSV_PATH)
+        except Exception as e:
+            print(f"[ERROR] Impossible d'initialiser la base : {e}")
+            return
     else:
-        print("Base de données existante, aucune action nécessaire.")
+        print("[INFO] Base de données existante, aucune action nécessaire.")
 
-    # Ici tu peux démarrer ton application ou exécuter d'autres fonctions
-
-    engine.dispose()
+    # Fermer le moteur proprement
+    db.engine.dispose()
+    print("[INFO] Application terminée.")
 
 
 if __name__ == "__main__":

@@ -1,26 +1,10 @@
 from pathlib import Path
-import hashlib
-import bcrypt
 from faker import Faker
 import pandas as pd
 from application.models.entities import *
+from application.utils.crypto_tools import CryptoTools
 
 fake = Faker()
-
-def hash_password(password: str) -> str:
-    """
-    Hash sécurisé du mot de passe avec bcrypt.
-    """
-    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-    return hashed.decode("utf-8")
-
-def hash_email(email: str) -> str:
-    """
-    Anonymisation de l'email par SHA-256.
-    Non réversible, peut seulement être utilisé pour vérification/unicité.
-    """
-    normalized = email.strip().lower()
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 def generate_fake_users(num_users=50):
     """
@@ -38,13 +22,13 @@ def generate_fake_users(num_users=50):
         if not consent:
             continue  # Ne pas stocker les données si consentement False
 
-        raw_password = fake.password(length=10)
+        raw_password = fake.password(length=16)
         raw_mail = fake.unique.email()  # donnée sensible fictive
 
         user = User(
             pseudo=fake.unique.user_name(),
-            password=hash_password(raw_password),
-            mail=hash_email(raw_mail),
+            password=CryptoTools.hash_password(raw_password),
+            mail=CryptoTools.hash_email(raw_mail),
             consent=True,
             expiry=fake.date_between(start_date="today", end_date="+5y")
         )
@@ -54,8 +38,6 @@ def generate_fake_users(num_users=50):
 
 def generate_fake_users_with_games(session, num_users=50, min_games=10, max_games=20):
     from random import sample, randint
-    from application.models.entities import User, Game, GameUser
-    
     all_games = session.query(Game).all()
     if not all_games:
         print("[WARN] Aucun jeu en base pour attribuer aux utilisateurs.")
@@ -63,33 +45,40 @@ def generate_fake_users_with_games(session, num_users=50, min_games=10, max_game
 
     users = []
 
-    for _ in range(num_users):
-        consent = fake.boolean(chance_of_getting_true=80)
-        if not consent:
-            continue
+    try:
+        for _ in range(num_users):
+            consent = fake.boolean(chance_of_getting_true=80)
+            if not consent:
+                continue
 
-        user = User(
-            pseudo=fake.unique.user_name(),
-            password=hash_password(fake.password(length=10)),
-            mail=hash_email(fake.unique.email()),
-            consent=True,
-            expiry=fake.date_between(start_date="today", end_date="+5y")
-        )
+            user = User(
+                pseudo=fake.unique.user_name(),
+                password=CryptoTools.hash_password(fake.password(length=10)),
+                mail=CryptoTools.hash_email(fake.unique.email()),
+                consent=True,
+                expiry=fake.date_between(start_date="today", end_date="+5y")
+            )
 
-        n_games = randint(min_games, min(max_games, len(all_games)))
-        selected_games = sample(all_games, n_games)
+            session.add(user)
+            session.flush()
 
-        # Crée les objets GameUser pour lier l'utilisateur aux jeux
-        for game in selected_games:
-            link = GameUser(user=user, game=game)
-            user.game_links.append(link)  # ou session.add(link) directement
+            n_games = randint(min_games, min(max_games, len(all_games)))
+            selected_games = sample(all_games, n_games)
 
-        session.add(user)
-        users.append(user)
+            for game in selected_games:
+                link_game_to_user(session, user.id, game.id)
 
-    session.commit()
-    print(f"[INFO] {len(users)} utilisateurs insérés avec leurs jeux.")
-    return users
+            users.append(user)
+
+        session.commit()
+        print(f"[INFO] {len(users)} utilisateurs insérés avec leurs jeux.")
+        return users
+
+    except Exception as e:
+        session.rollback()
+        print("[ERROR] Génération annulée, rollback effectué :", e)
+        return []
+
 
 
 def read_csv_to_df(input_data):
@@ -138,7 +127,7 @@ def sync_table_from_df(session, df: pd.DataFrame, model, column_name: str):
     return existing_items
 
 
-def generate_and_insert_games(df: pd.DataFrame, session):
+def generate_and_insert_games(session, df: pd.DataFrame):
     # --- Synchroniser les tables de référence ---
     all_genres = sync_table_from_df(session, df, Genre, "Genre")
     all_publishers = sync_table_from_df(session, df, Publisher, "Publisher")
@@ -188,4 +177,77 @@ def generate_and_insert_games(df: pd.DataFrame, session):
     session.add_all(game_platforms)
     session.add_all(sales)
     session.commit()
-    print(f"[INFO] Tout inséré avec succès : {len(games)} jeux, {len(game_platforms)} game-platforms, {len(sales)} ventes.")
+    print(f"[INFO] {len(games)} jeux insérés avec succès.")
+
+def link_game_to_user(session, user_id: int, game_id: int):
+    try:
+        # --- Vérifier que l'utilisateur existe ---
+        user = session.query(User).filter_by(id=user_id).first()
+        if not user:
+            raise ValueError(f"Utilisateur avec id {user_id} introuvable")
+
+        # --- Vérifier que le jeu existe ---
+        game = session.query(Game).filter_by(id=game_id).first()
+        if not game:
+            raise ValueError(f"Jeu avec id {game_id} introuvable")
+
+        # --- Vérifier que le lien n'existe pas déjà ---
+        existing_link = session.query(GameUser).filter_by(
+            user_id=user_id,
+            game_id=game_id
+        ).first()
+
+        if existing_link:
+            raise ValueError(f"Le jeu '{game.name}' est déjà associé à l'utilisateur '{user.pseudo}'")
+
+
+        # --- Créer le lien ---
+        link = GameUser(user=user, game=game)
+        session.add(link)
+        session.commit()
+
+        # print(f"[INFO] Jeu '{game.name}' associé à l'utilisateur '{user.pseudo}'.")
+        return link
+
+    except Exception as e:
+        session.rollback()
+        print("[ERROR] Échec de l'association Game-User :", e)
+        return None
+
+def link_game_to_platform(session, game_id: int, platform_id: int, release_year: int | None = None):
+    try:
+        # --- Vérifier que le jeu existe ---
+        game = session.query(Game).filter_by(id=game_id).first()
+        if not game:
+            raise ValueError(f"Jeu avec id {game_id} introuvable")
+
+        # --- Vérifier que la plateforme existe ---
+        platform = session.query(Platform).filter_by(id=platform_id).first()
+        if not platform:
+            raise ValueError(f"Plateforme avec id {platform_id} introuvable")
+
+        # --- Vérifier que le lien n'existe pas déjà ---
+        existing_link = session.query(GamePlatform).filter_by(
+            game_id=game_id,
+            platform_id=platform_id
+        ).first()
+
+        if existing_link:
+            raise ValueError(f"Le jeu '{game.name}' est déjà associé à la plateforme '{platform.name}'")
+
+        # --- Créer le lien ---
+        link = GamePlatform(
+            game=game,
+            platform=platform,
+            release_year=release_year
+        )
+        session.add(link)
+        session.commit()
+
+        # print(f"[INFO] Jeu '{game.name}' associé à la plateforme '{platform.name}' avec release_year={release_year}.")
+        return link
+
+    except Exception as e:
+        session.rollback()
+        print("[ERROR] Échec de l'association Game-Platform :", e)
+        return None

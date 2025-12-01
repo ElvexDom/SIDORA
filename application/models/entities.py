@@ -164,7 +164,7 @@ class Genre(Base):
     __tablename__ = "genres"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(10), nullable=False, unique=True)
+    name = Column(String(20), nullable=False, unique=True)
 
     games = relationship("Game", back_populates="genre", cascade="all, delete-orphan")
 
