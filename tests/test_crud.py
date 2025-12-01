@@ -1,9 +1,5 @@
-import sys
 from datetime import date
-from pathlib import Path
 import pytest
-
-sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from application.db.database_manager import DatabaseManager
 from application.utils.crypto_tools import CryptoTools
