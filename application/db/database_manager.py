@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from application.models.entities import *
+from application.utils.log_watcher import LogWatcher
 
 
 class DatabaseManager:
@@ -39,7 +40,7 @@ class DatabaseManager:
         try:
             # Création des tables
             Base.metadata.create_all(self.engine)
-            print(f"[INFO] {len(Base.metadata.tables)} tables ont été créées avec succès.")
+            LogWatcher.log("info", f"{len(Base.metadata.tables)} tables ont été créées avec succès.")
 
             # Insertion des données si CSV fourni
             if csv_path:
@@ -51,14 +52,13 @@ class DatabaseManager:
                         generate_and_insert_games(session, df_games)
                         generate_fake_users_with_games(session, num_users=50)
                         session.commit()
-                        print("[INFO] Données insérées avec succès.")
+                        LogWatcher.log("info", "Données insérées avec succès.")
                     except SQLAlchemyError as e:
                         session.rollback()
-                        print(f"[ERROR] Erreur SQLAlchemy lors de l'insertion des données : {e}")
-                        raise  # remonter l'erreur si nécessaire
-            print("[INFO] Initialisation de la base terminée avec succès.")
+                        LogWatcher.log("error", f"Erreur SQLAlchemy lors de l'insertion des données : {e}", True)
+                        raise
         except Exception as e:
-            print(f"[ERROR] Erreur inattendue lors de l'initialisation de la DB : {e}")
+            LogWatcher.log("critical", f"Erreur inattendue lors de l'initialisation de la DB : {e}", True)
             raise
 
     # ------------------------ CRUD ------------------------
@@ -81,7 +81,7 @@ class DatabaseManager:
                 return models
             except SQLAlchemyError as e:
                 session.rollback()
-                print(f"[ERROR] Erreur SQLAlchemy lors de l'insertion : {e}")
+                LogWatcher.log("error", f"Erreur SQLAlchemy lors de l'insertion : {e}", True)
                 return []
 
     def fetch_model(self, model: object, filters: dict | None = None, first: bool = False) -> object | list[object] | None:
@@ -100,7 +100,7 @@ class DatabaseManager:
                     query = query.filter_by(**filters)
                 return query.first() if first else query.all()
         except SQLAlchemyError as e:
-            print(f"[ERROR] Erreur SQLAlchemy lors de la lecture de {model.__name__}: {e}")
+            LogWatcher.log("error", f"Erreur SQLAlchemy lors de la lecture de {model.__name__}: {e}", True)
             return None
 
     def update_model(self, model: object, filters: dict, values: dict) -> int | None:
@@ -116,11 +116,11 @@ class DatabaseManager:
                 query = session.query(model).filter_by(**filters)
                 updated_count = query.update(values, synchronize_session="fetch")
                 session.commit()
-                print(f"[INFO] {updated_count} ligne(s) mise(s) à jour dans la table {model.__name__}.")
+                LogWatcher.log("info", f"{updated_count} ligne(s) mise(s) à jour dans la table {model.__name__}.")
                 return updated_count
             except SQLAlchemyError as e:
                 session.rollback()
-                print(f"[ERROR] Erreur SQLAlchemy lors de la mise à jour de {model.__name__}: {e}")
+                LogWatcher.log("error", f"Erreur SQLAlchemy lors de la mise à jour de {model.__name__}: {e}", True)
                 return None
 
     def delete_model(self, model: object, filters: dict) -> int | None:
@@ -136,9 +136,9 @@ class DatabaseManager:
                 query = session.query(model).filter_by(**filters)
                 deleted_count = query.delete(synchronize_session="fetch")
                 session.commit()
-                print(f"[INFO] {deleted_count} ligne(s) supprimée(s) dans la table {model.__name__}.")
+                LogWatcher.log("error", f"{deleted_count} ligne(s) supprimée(s) dans la table {model.__name__}.")
                 return deleted_count
             except SQLAlchemyError as e:
                 session.rollback()
-                print(f"[ERROR] Erreur SQLAlchemy lors de la suppression dans {model.__name__}: {e}")
+                LogWatcher.log("error", f"Erreur SQLAlchemy lors de la suppression dans {model.__name__}: {e}", True)
                 return None

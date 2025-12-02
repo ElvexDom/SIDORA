@@ -3,6 +3,7 @@ from faker import Faker
 import pandas as pd
 from application.models.entities import *
 from application.utils.crypto_tools import CryptoTools
+from application.utils.log_watcher import LogWatcher
 
 fake = Faker()
 
@@ -40,7 +41,7 @@ def generate_fake_users_with_games(session, num_users=50, min_games=10, max_game
     from random import sample, randint
     all_games = session.query(Game).all()
     if not all_games:
-        print("[WARN] Aucun jeu en base pour attribuer aux utilisateurs.")
+        LogWatcher.log("warning", "Aucun jeu en base pour attribuer aux utilisateurs.", True)
         return []
 
     users = []
@@ -71,12 +72,12 @@ def generate_fake_users_with_games(session, num_users=50, min_games=10, max_game
             users.append(user)
 
         session.commit()
-        print(f"[INFO] {len(users)} utilisateurs insérés avec leurs jeux.")
+        LogWatcher.log("info", f"{len(users)} utilisateurs insérés avec leurs jeux.")
         return users
 
     except Exception as e:
         session.rollback()
-        print("[ERROR] Génération annulée, rollback effectué :", e)
+        LogWatcher.log("error", f"Erreur lors de la génération de fake users : {e}", True)
         return []
 
 
@@ -177,7 +178,7 @@ def generate_and_insert_games(session, df: pd.DataFrame):
     session.add_all(game_platforms)
     session.add_all(sales)
     session.commit()
-    print(f"[INFO] {len(games)} jeux insérés avec succès.")
+    LogWatcher.log("info", f"{len(games)} jeux insérés avec succès.")
 
 def link_game_to_user(session, user_id: int, game_id: int):
     try:
@@ -206,12 +207,11 @@ def link_game_to_user(session, user_id: int, game_id: int):
         session.add(link)
         session.commit()
 
-        # print(f"[INFO] Jeu '{game.name}' associé à l'utilisateur '{user.pseudo}'.")
         return link
 
     except Exception as e:
         session.rollback()
-        print("[ERROR] Échec de l'association Game-User :", e)
+        LogWatcher.log("error", f"Échec de l'association Game-User : {e}", True)
         return None
 
 def link_game_to_platform(session, game_id: int, platform_id: int, release_year: int | None = None):
@@ -244,10 +244,9 @@ def link_game_to_platform(session, game_id: int, platform_id: int, release_year:
         session.add(link)
         session.commit()
 
-        # print(f"[INFO] Jeu '{game.name}' associé à la plateforme '{platform.name}' avec release_year={release_year}.")
         return link
 
     except Exception as e:
         session.rollback()
-        print("[ERROR] Échec de l'association Game-Platform :", e)
+        LogWatcher.log("error", f"Échec de l'association Game-Platform : {e}", True)
         return None
