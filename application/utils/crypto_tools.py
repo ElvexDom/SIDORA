@@ -1,58 +1,131 @@
+from application.utils.log_watcher import LogWatcher
 import bcrypt
 import hashlib
 
 
 class CryptoTools:
     """
-    Classe utilitaire pour les opérations de cryptographie :
-    - Hash sécurisé des mots de passe
-    - Anonymisation des emails
+    Classe utilitaire pour les opérations de cryptographie.
+
+    Fournit des méthodes pour :
+    - Hasher et vérifier les mots de passe avec bcrypt.
+    - Anonymiser et vérifier des emails avec SHA-256.
+
+    Toutes les méthodes statiques loggent les erreurs via LogWatcher en cas d'échec.
     """
 
     @staticmethod
     def hash_password(password: str) -> str:
         """
-        Hash sécurisé du mot de passe avec bcrypt.
+        Hash sécurisé d'un mot de passe en clair avec bcrypt.
 
-        :param password: Mot de passe en clair
-        :return: Mot de passe hashé (string UTF-8)
+        Paramètres
+        ----------
+        password : str
+            Mot de passe en clair.
+
+        Retour
+        ------
+        str
+            Mot de passe hashé en UTF-8.
+
+        Exceptions
+        ----------
+        RuntimeError
+            Levée si le hashage échoue.
         """
-        hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-        return hashed.decode("utf-8")
+        try:
+            hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+            return hashed.decode("utf-8")
+        except Exception as e:
+            LogWatcher.log("error", f"Erreur lors du hashage du mot de passe : {e}")
+            raise RuntimeError("Impossible de hasher le mot de passe") from e
 
     @staticmethod
     def verify_password(password: str, hashed_password: str) -> bool:
         """
-        Vérifie un mot de passe en clair contre un hash bcrypt.
+        Vérifie qu'un mot de passe en clair correspond à un hash bcrypt stocké.
 
-        :param password: Mot de passe en clair
-        :param hashed_password: Mot de passe hashé stocké
-        :return: True si valide, False sinon
+        Paramètres
+        ----------
+        password : str
+            Mot de passe en clair à vérifier.
+        hashed_password : str
+            Mot de passe hashé stocké en base.
+
+        Retour
+        ------
+        bool
+            True si le mot de passe correspond, False sinon.
+
+        Exceptions
+        ----------
+        RuntimeError
+            Levée si la vérification échoue.
         """
-        return bcrypt.checkpw(
-            password.encode("utf-8"),
-            hashed_password.encode("utf-8")
-        )
+        try:
+            return bcrypt.checkpw(
+                password.encode("utf-8"),
+                hashed_password.encode("utf-8")
+            )
+        except Exception as e:
+            LogWatcher.log("error", f"Erreur lors de la vérification du mot de passe : {e}")
+            raise RuntimeError("Impossible de vérifier le mot de passe") from e
 
     @staticmethod
     def hash_email(email: str) -> str:
         """
-        Anonymisation de l'email par SHA-256.
-        Non réversible, utilisable pour vérification ou unicité.
+        Hash SHA-256 pour anonymiser une adresse email.
 
-        :param email: Adresse email en clair
-        :return: Hash SHA-256 de l'email normalisé
+        Non réversible, utilisable pour vérifier l'unicité ou comparer des emails
+        sans stocker l'email en clair.
+
+        Paramètres
+        ----------
+        email : str
+            Adresse email en clair.
+
+        Retour
+        ------
+        str
+            Hash SHA-256 de l'email normalisé (minuscules, sans espaces).
+
+        Exceptions
+        ----------
+        RuntimeError
+            Levée si le hashage échoue.
         """
-        normalized = email.strip().lower()
-        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        try:
+            normalized = email.strip().lower()
+            return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+        except Exception as e:
+            LogWatcher.log("error", f"Erreur lors du hashage de l'email : {e}")
+            raise RuntimeError("Impossible de hasher l'email") from e
 
     @staticmethod
     def verify_email(email: str, hashed_email: str) -> bool:
         """
-        Vérifie un email en clair contre un hash SHA-256.
+        Vérifie qu'un email en clair correspond à un hash SHA-256 stocké.
 
-        :param email: Email en clair à vérifier
-        :param hashed_email: Hash SHA-256 stocké
-        :return: True si correspond, False sinon
+        Paramètres
+        ----------
+        email : str
+            Email en clair à vérifier.
+        hashed_email : str
+            Hash SHA-256 stocké.
+
+        Retour
+        ------
+        bool
+            True si le hash correspond à l'email, False sinon.
+
+        Exceptions
+        ----------
+        RuntimeError
+            Levée si la vérification échoue.
         """
-        return CryptoTools.hash_email(email) == hashed_email
+        try:
+            return CryptoTools.hash_email(email) == hashed_email
+        except Exception as e:
+            LogWatcher.log("error", f"Erreur lors de la vérification de l'email : {e}")
+            raise RuntimeError("Impossible de vérifier l'email") from e
