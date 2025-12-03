@@ -94,7 +94,7 @@
 	<text x="1112" y="102.8" fill="#000000" font-family="Verdana" font-size="12">japan | FLOAT(4.2)</text>
 	<text x="1112" y="119.8" fill="#000000" font-family="Verdana" font-size="12">other | FLOAT(4.2)</text>
 	<text x="1112" y="136.8" fill="#000000" font-family="Verdana" font-size="12">total | FLOAT(4.2)</text>
-	<text x="1112" y="153.8" fill="#000000" font-family="Verdana" font-size="12">id_user | INT(32)</text>
+	<text x="1112" y="153.8" fill="#000000" font-family="Verdana" font-size="12">id_game | INT(32)</text>
 </g>
 
 <!-- Entity GAMES_USERS -->
